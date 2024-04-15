@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Domain Finder</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=League+Gothic&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Open+Sans&display=swap');
+
+        body {
+            font-family: 'Open Sans', sans-serif;
+            text-align: center;
+            padding: 0;
+            margin: 0;
+            display: flex; /* Use flexbox for centering */
+            justify-content: center; /* Center horizontally */
+            align-items: center; /* Center vertically */
+            background-color: #181818; /* Adding a background color for better visibility */
+        }
+
+        .container {
+            box-sizing: border-box;
+            padding: 50px;
+            color: #ffffff;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            font-family: 'League Gothic', sans-serif;
+            font-size: 6vw;
+            font-weight: 200;
+            letter-spacing: -1px;
+            line-height: 1.2;
+            text-size-adjust: 100%;
+            text-transform: uppercase;
+            margin: 0;
+            padding: 20px;
+            color: #ffe100;
+        }
+
+        .input-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        input[type="number"], button, select {
+            width: 30vw;
+            padding: 1.5vw;
+            border-radius: 4px;
+            border: none;
+            font-size: 2vw;
+            cursor: pointer;
+            background-color: #ffffff;
+            color: #181818;
+            margin: 1vw;
+        }
+
+        button {
+            background-color: #ffe100;
+        }
+
+        input[type="number"] {
+            text-align: center;
+        }
+
+        button:disabled {
+            background-color: #ffffff;
+            cursor: not-allowed;
+            color: #8c8c8c;
+        }
+
+        #availableDomains {
+            margin: 4vw auto;
+            text-align: center;
+            font-size: 2vw;
+            border-collapse: collapse;
+            width: 30vw; /* Same as button width */
+            border-radius: 4px; /* Same as button radius */
+            border: 1px solid #ffffff; /* Border style */
+            border-spacing: 0;
+        }
+
+        #availableDomains td, #availableDomains th {
+            padding: 1vw;
+            border: 1px solid #ffffff;
+        }
+
+        #availableDomains th {
+            background-color: #ffffff;
+            color: #181818;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Available Domain Finder</h1>
+        <p>Select the number and extension of domains you're looking for and click <em>Generate</em>.</p>
+        <div class="input-container">
+            <input type="number" id="domainCount" value="5" min="1">
+            <select id="domainExtension">
+                <option value=".com">.com</option>
+                <option value=".net">.net</option>
+                <option value=".org">.org</option>
+                <option value=".io">.io</option>
+                <option value=".co">.co</option>
+                <option value=".dev">.dev</option>
+                <option value=".app">.app</option>
+                <option value=".info">.info</option>
+                <option value=".biz">.biz</option>
+                <option value=".me">.me</option>
+            </select>
+        </div>
+        <button id="generateButton">Generate</button>
+        <button id="stopButton" class="hidden" disabled>Stop</button>
+        <button id="clearButton" class="hidden" disabled>Clear</button>
+        <table id="availableDomains"></table>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.23.0/axios.min.js"></script>
+    <script>
+        let stopRequested = false; // Flag to indicate if stop button is clicked
+
+        async function fetchRandomWord() {
+            try {
+                const response = await axios.get("https://random-word-api.herokuapp.com/word?number=1");
+                return response.data[0];
+            } catch (error) {
+                console.error("Failed to fetch a random word. Please check your internet connection.");
+                return null;
+            }
+        }
+
+        async function generateDomain(word, extension) {
+            return word.toLowerCase() + extension;
+        }
+
+        async function checkDomainAvailability(domain) {
+            const dnsServers = [
+                "https://dns.google/resolve?name=", // Google Public DNS
+                "https://dns.control-d.com/resolve?name=", // Control D
+                "https://dns.quad9.net:5053/dns-query?name=", // Quad9 DNS
+                "https://doh.opendns.com/resolve?name=", // OpenDNS
+                "https://cloudflare-dns.com/dns-query?name=", // Cloudflare DNS
+                "https://dns.adguard.com/dns-query?name=", // AdGuard DNS
+                "https://doh.cleanbrowsing.org/doh/family-filter/?name=", // CleanBrowsing
+                "https://dns.alternate-dns.com/dns-query?name=" // Alternate DNS
+            ];
+
+            let availableOnAllServers = true;
+
+            // Function to fetch DNS response with timeout
+            async function fetchWithTimeout(url, timeout) {
+                return new Promise(async (resolve, reject) => {
+                    try {
+                        const response = await axios.get(url, { timeout });
+                        resolve(response);
+                    } catch (error) {
+                        reject(error);
+                    }
+                });
+            }
+
+            // Iterate through each DNS server
+            for (let i = 0; i < dnsServers.length; i++) {
+                try {
+                    // Fetch DNS response with 2-second timeout
+                    const response = await Promise.race([
+                        fetchWithTimeout(`${dnsServers[i]}${domain}&type=A`, 2000),
+                        new Promise((resolve, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
+                    ]);
+
+                    if (response.data.Status === 0 && response.data.Answer) {
+                        // If any DNS server responds with an empty answer, domain is not available
+                        availableOnAllServers = false;
+                        break;
+                    }
+                } catch (error) {
+                    console.error(`Failed to check domain availability using ${dnsServers[i]}`);
+                    continue; // Try next DNS server if an error occurs
+                }
+            }
+
+            return availableOnAllServers; // Return true only if domain is available on all DNS servers
+        }
+
+        async function generateDomains() {
+            stopRequested = false; // Reset stop flag
+            const domainCount = parseInt(document.getElementById("domainCount").value);
+            const availableDomains = [];
+            let count = 0;
+
+            const table = document.getElementById("availableDomains");
+            table.innerHTML = ""; // Clear previous content
+
+            document.getElementById("generateButton").disabled = true; // Disable generate button during generation
+            document.getElementById("clearButton").disabled = true; // Disable clear button during generation
+            document.getElementById("stopButton").classList.remove("hidden"); // Show stop button
+            document.getElementById("stopButton").disabled = false; // Enable stop button
+
+            // Get the selected domain extension
+            const selectedExtension = document.getElementById("domainExtension").value;
+
+            while (count < domainCount && !stopRequested) {
+                const word = await fetchRandomWord();
+                if (word) {
+                    // Generate domain with selected extension
+                    const domain = await generateDomain(word, selectedExtension);
+                    const isAvailable = await checkDomainAvailability(domain);
+                    if (isAvailable) {
+                        availableDomains.push(domain);
+                        count++;
+
+                        // Display each domain in a separate row
+                        const row = table.insertRow();
+                        const indexCell = row.insertCell();
+                        const domainCell = row.insertCell();
+                        indexCell.textContent = count;
+                        domainCell.textContent = domain;
+                    }
+                } else {
+                    console.error("Failed to fetch a random word. Please check your internet connection.");
+                    break;
+                }
+            }
+
+            // Smooth scroll to the available domains section
+            table.scrollIntoView({ behavior: 'smooth' });
+
+            document.getElementById("generateButton").disabled = false; // Re-enable generate button after generation
+            document.getElementById("clearButton").disabled = false; // Re-enable clear button after generation
+            document.getElementById("clearButton").classList.remove("hidden"); // Show clear button after generation
+            document.getElementById("stopButton").classList.add("hidden"); // Hide stop button after generation
+            document.getElementById("stopButton").disabled = true; // Disable stop button after generation
+        }
+
+        function stopGeneration() {
+            stopRequested = true; // Set stop flag
+        }
+
+        function clearDomains() {
+            document.getElementById("availableDomains").innerHTML = "";
+            document.getElementById("domainCount").value = "10";
+            document.getElementById("clearButton").classList.add("hidden");
+        }
+
+        document.getElementById("generateButton").addEventListener("click", generateDomains);
+        document.getElementById("clearButton").addEventListener("click", clearDomains);
+        document.getElementById("stopButton").addEventListener("click", stopGeneration);
+    </script>
+</body>
+</html>
