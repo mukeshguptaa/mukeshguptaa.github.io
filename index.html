@@ -13,7 +13,6 @@
             box-sizing: border-box;
         }
         body {
-/*             height: 100vh; */
             background-color: #181818;
             display: flex;
             flex-direction: column;
@@ -29,14 +28,27 @@
             letter-spacing: -1px;
             text-transform: uppercase;
             color: #ffe100;
-            line-height: 1em;
-            margin: 20px 0;
+            line-height: 1.15em;
+            margin-top: 30px;
         }
         label {
             color: #ffffff;
-            margin-top: 10px;
+            margin-top: 30px;
             font-size: 16px;
         }
+
+        p {
+            margin: 30px 0;
+            font-size: 0.65em;
+            color: #ffffff;
+            text-align: center;
+            line-height: 2em;
+        }
+
+        a {
+            color: #ffe100;
+        }
+
         input[type="number"], button, select {
             width: 80vw;
             max-width: 450px;
@@ -49,6 +61,7 @@
             color: #181818;
             border: none;
             cursor: pointer;
+            margin-top: 30px;
         }
         input[type="number"], select {
             background-color: #181818;
@@ -59,8 +72,7 @@
         #statusLabel {
             color: #ffe100;
             font-size: 18px;
-            height: 22px; /* Fixed height to avoid layout shift */
-            margin-top: 10px;
+            margin-top: 30px;
         }
         #availableDomains {
             color: #ffffff;
@@ -96,10 +108,13 @@
         <option value=".me">.me</option>
     </select>
     <button id="toggleButton">Generate 🚀</button>
+    
     <label id="statusLabel"></label>
     <table id="availableDomains"></table>
-
     
+    <p>Kindly note, some domains might be false positives as this app depends upon free resources.<br>
+    Built with 💛 by <a href="https://www.linkedin.com/in/mukeshguptaa/">Mukesh Gupta</a></p>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.23.0/axios.min.js"></script>
     <script>
         let stopRequested = false;
@@ -173,26 +188,57 @@ function stopGeneration() {
 
         // Provided function to check domain availability
         async function checkDomainAvailability(domain) {
-            const dnsServers = [
-                "https://dns.google/resolve?name=", // Google Public DNS
-                "https://dns.control-d.com/resolve?name=", // Control D
-                "https://dns.quad9.net:5053/dns-query?name=", // Quad9 DNS
-                "https://doh.opendns.com/resolve?name=", // OpenDNS
-                "https://cloudflare-dns.com/dns-query?name=", // Cloudflare DNS
-                "https://dns.adguard.com/dns-query?name=", // AdGuard DNS
-                "https://doh.cleanbrowsing.org/doh/family-filter/?name=", // CleanBrowsing
-                "https://dns.alternate-dns.com/dns-query?name=" // Alternate DNS
-            ];
+    const dnsServers = [
+        "https://dns.google/resolve?name=", // Google Public DNS
+        "https://dns.quad9.net:5053/dns-query?name=", // Quad9 DNS
+        "https://cloudflare-dns.com/dns-query?name=", // Cloudflare DNS
+    ];
 
-            let availableOnAllServers = true;
+    // Initial DNS check
+    let isAvailable = await performDNSChecks(dnsServers, domain);
+    if (!isAvailable) return false;
 
-            // Function to fetch DNS response with timeout
-            async function fetchWithTimeout(url, timeout) {
+    // Perform HTTP check if DNS check passes
+    return await performHTTPCheck(domain);
+}
+
+async function performDNSChecks(dnsServers, domain) {
+    let availableOnAllServers = true;
+    for (let i = 0; i < dnsServers.length; i++) {
+        try {
+            const response = await Promise.race([
+                fetchWithTimeout(`${dnsServers[i]}${domain}&type=A`, 3000),
+                new Promise((resolve, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+            ]);
+            if (response.data.Status === 0 && response.data.Answer) {
+                availableOnAllServers = false;
+                break;
+            }
+        } catch (error) {
+            console.error(`Failed to check domain availability using ${dnsServers[i]}`);
+            continue;
+        }
+    }
+    return availableOnAllServers;
+}
+
+async function performHTTPCheck(domain) {
+    try {
+        const url = `http://${domain}`;
+        const response = await axios.get(url);
+        // If a server responds, assume the domain is not available
+        return false;
+    } catch (error) {
+        // If there's no response, it might be safe to assume the domain could be available
+        return true;
+    }
+}
+
+async function fetchWithTimeout(url, timeout) {
     return new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
             reject(new Error('Timeout'));
         }, timeout);
-
         axios.get(url, { timeout }).then(response => {
             clearTimeout(timer);
             resolve(response);
@@ -202,27 +248,6 @@ function stopGeneration() {
         });
     });
 }
-
-
-            // Iterate through each DNS server
-            for (let i = 0; i < dnsServers.length; i++) {
-                try {
-                    const response = await Promise.race([
-                        fetchWithTimeout(`${dnsServers[i]}${domain}&type=A`, 2000),
-                        new Promise((resolve, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
-                    ]);
-
-                    if (response.data.Status === 0 && response.data.Answer) {
-                        availableOnAllServers = false;
-                        break;
-                    }
-                } catch (error) {
-                    console.error(`Failed to check domain availability using ${dnsServers[i]}`);
-                    continue;
-                }
-            }
-            return availableOnAllServers;
-        }
     </script>
 </body>
 </html>
