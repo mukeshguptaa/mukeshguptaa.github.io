@@ -2,72 +2,78 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Available Domain Finder</title>
+    <link href="https://fonts.googleapis.com/css2?family=League+Gothic&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=League+Gothic&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Open+Sans&display=swap');
         * {
-            margin:0;
-            padding:0;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
         body {
-            height:100vh;
+            height: 100vh;
             background-color: #181818;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            font-family: 'Open Sans', sans-serif;
         }
         h1 {
             font-family: 'League Gothic', sans-serif;
-            font-size: 4em;
+            font-size: 4rem;
             text-align: center;
             font-weight: 200;
             letter-spacing: -1px;
             text-transform: uppercase;
             color: #ffe100;
             line-height: 1em;
+            margin: 20px 0;
         }
         label {
-            font-family: 'Open Sans', sans-serif;
             color: #ffffff;
-            margin-top: 20px;
-            font-size: 1em;
+            margin-top: 10px;
+            font-size: 16px;
         }
         input[type="number"], button, select {
-            box-sizing: border-box;
             width: 80vw;
-            font-size: 1em;
             max-width: 450px;
+            font-size: 16px;
+            padding: 15px;
             margin-top: 10px;
-            padding: 15px 0;
         }
         button {
-            margin-top: 20px;
             background-color: #ffe100;
             color: #181818;
             border: none;
+            cursor: pointer;
         }
         input[type="number"], select {
-            text-align: center;
             background-color: #181818;
             border: 2px solid #ffe100;
             color: #fff;
+            text-align: center;
+        }
+        #statusLabel {
+            color: #ffe100;
+            font-size: 18px;
+            height: 22px; /* Fixed height to avoid layout shift */
+            margin-top: 10px;
         }
         #availableDomains {
             color: #ffffff;
             text-align: center;
             border-collapse: collapse;
-            width: 80vw; 
+            width: 80vw;
             max-width: 450px;
             margin-top: 20px;
         }
         #availableDomains td {
             border: 2px solid #ffe100;
-            padding: 15px 0;
-            font-family: 'Open Sans', sans-serif;
-            font-size: 1em;
+            padding: 15px;
+            font-size: 16px;
         }
     </style>
 </head>
@@ -75,7 +81,7 @@
     <h1>🤹🏻<br>Available Domain Finder</h1>
     <label for="domainCount"><strong>Number of Domains</strong></label>
     <input type="number" id="domainCount" value="5" min="1">
-    <label for="domainExtension">Domain Extension</label>
+    <label for="domainExtension"><strong>Domain Extension</strong></label>
     <select id="domainExtension">
         <option value=".com">.com</option>
         <option value=".net">.net</option>
@@ -89,8 +95,10 @@
         <option value=".me">.me</option>
     </select>
     <button id="toggleButton">Generate 🚀</button>
-    <label id="statusLabel" style="color: #ffe100; font-size: 1.5em;"></label>
+    <label id="statusLabel"></label>
     <table id="availableDomains"></table>
+
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.23.0/axios.min.js"></script>
     <script>
         let stopRequested = false;
